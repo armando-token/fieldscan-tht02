@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FieldScan · TZ THT-02 Digital Twin</title>
+    <link rel="stylesheet" href="/static/vendor/open-props.min.css" />
+    <link rel="stylesheet" href="/static/vendor/uPlot.min.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=scada3" />
+  </head>
+  <body>
+    <div id="appShell">
+      <header class="header-top">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <div class="brand-title">FieldScan CAD</div>
+            <div class="brand-sub">TZ THT-02 · Offline Twin</div>
+          </div>
+        </div>
+        <div class="sensor-pills">
+          <button type="button" class="pill pill--cyan" id="btnSensorPill" title="Sensor identity">
+            THT-02
+          </button>
+          <span class="pill" id="pillModelText">Model: TZ-THT-02</span>
+          <span class="pill" id="pillRamText">RAM: —</span>
+          <span class="pill" id="pillLatencyText">API: — ms</span>
+          <span class="pill pill--green" id="pillAirplane">
+            <span id="pillAirplaneText">Offline verified</span>
+          </span>
+          <span class="pill" id="fpsCounterText">FPS: —</span>
+          <span class="tag tag--queue" id="escQueueTag">Esc queue: idle</span>
+        </div>
+        <div class="header-actions">
+          <a class="btn btn--sm btn--ghost" id="btnDownloadDxf" href="/api/cad/dxf" download>DXF</a>
+          <a class="btn btn--sm btn--ghost" id="btnDownloadStl" href="/api/cad/stl" download>STL</a>
+          <button type="button" class="btn btn--sm btn--primary" id="btnOpenEscalateModal">
+            Escalate
+          </button>
+        </div>
+      </header>
+
+      <header class="header-sub">
+        <div id="systemStateBanner" class="state-green">
+          <div>
+            <div id="systemStateText">IDLE_MONITORING</div>
+            <div id="systemStateSub">Awaiting operator or proactive edge events</div>
+          </div>
+        </div>
+        <nav class="repair-steps" aria-label="Repair workflow">
+          <button type="button" class="btn btn--sm" id="btnStepInspect">1 · Inspect</button>
+          <button type="button" class="btn btn--sm" id="btnStepDip">2 · DIP</button>
+          <button type="button" class="btn btn--sm" id="btnStepConnect">3 · Modbus</button>
+          <button type="button" class="btn btn--sm" id="btnStepSignoff">4 · Sign-off</button>
+        </nav>
+      </header>
+
+      <main class="main-grid">
+        <!-- Zone A: Camera + manual -->
+        <section class="zone" aria-label="Vision and manual">
+          <div class="zone-head">
+            <span class="zone-title">Vision · CV HUD</span>
+            <span class="badge" id="camSourceBadge">SRC</span>
+            <span class="pill pill--sm" id="pillCamText">Camera: —</span>
+            <button type="button" class="btn btn--sm" id="btnCycleCvHud">HUD</button>
+            <span id="cvHudModeLabel" class="tag">Off</span>
+            <button type="button" class="btn btn--sm" id="btnToggleDipPip">DIP PiP</button>
+          </div>
+          <div class="zone-body">
+            <div class="camera-stack" id="videoFrame">
+              <img
+                id="videoStream"
+                alt="Live MJPEG bench feed"
+                src="/api/video/stream?raw=1"
+              />
+              <canvas id="videoFallbackCanvas" width="800" height="450" hidden></canvas>
+              <canvas id="cvSpatialHudCanvas" width="800" height="450"></canvas>
+              <div id="videoStaticReticle" aria-hidden="true"></div>
+              <div id="cameraHudTop">
+                <span class="badge badge--iso" id="hudIsolationPill">Offline guard</span>
+                <span class="badge" id="hudSensorId">TZ-THT-02</span>
+                <span class="badge" id="hudStatusTag">SCAN</span>
+              </div>
+              <div id="cameraZoomBar">
+                <button type="button" class="btn btn--sm" id="btnZoomAuto">Auto zoom</button>
+                <button type="button" class="btn btn--sm" id="btnRawLiveToggle">Raw MJPEG</button>
+              </div>
+              <div id="liveFeedProof">
+                <span id="liveFeedProofText">Live proof: waiting</span>
+              </div>
+            </div>
+            <div class="scan-metrics">
+              <div class="metric">
+                <label>Length est.</label>
+                <span id="scanDimVal">— mm</span>
+              </div>
+              <div class="metric">
+                <label>Coverage</label>
+                <span id="scanCoverageVal">0%</span>
+                <div class="coverage-bar"><div id="scanCoverageFill"></div></div>
+              </div>
+              <div class="metric">
+                <label>Angle</label>
+                <span id="scanAngleVal">—°</span>
+              </div>
+              <div class="metric">
+                <label>Zone</label>
+                <span id="scanZoneVal">—</span>
+              </div>
+            </div>
+            <div class="camera-toolbar">
+              <select id="selectCameraMode" aria-label="Camera mode">
+                <option value="auto">auto</option>
+                <option value="usb">usb</option>
+                <option value="sim_healthy" selected>sim_healthy</option>
+                <option value="sim_fault_strainer">sim_fault_strainer</option>
+                <option value="sim_open_dip">sim_open_dip</option>
+                <option value="sim_hand_screwdriver">sim_hand_screwdriver</option>
+              </select>
+              <button type="button" class="btn btn--sm" id="btnUploadPhoto">Upload photo</button>
+              <input
+                type="file"
+                id="photoUploadInput"
+                accept="image/*"
+                class="sr-only"
+                aria-label="Upload bench photo"
+              />
+            </div>
+            <div id="manualDrawer">
+              <div class="manual-head">
+                <span class="zone-title">Manual</span>
+                <button type="button" class="btn btn--sm btn--icon" id="btnToggleManualDrawer" title="Collapse manual">▾</button>
+                <button type="button" class="btn btn--sm" id="manualPrevBtn">Prev</button>
+                <span id="manualPageIndicator">Page 1 / ?</span>
+                <button type="button" class="btn btn--sm" id="manualNextBtn">Next</button>
+                <button type="button" class="btn btn--sm" id="btnExpandManual">Expand</button>
+              </div>
+              <div id="manualQuickPills"></div>
+              <div id="manualViewerBox">
+                <img id="manualPageImg" alt="Manual page" src="/api/manual/page/1" />
+              </div>
+              <div id="manualPageCaption">Loading manual index…</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Zone B: 3D twin + SCADA -->
+        <section class="zone" aria-label="Digital twin and SCADA">
+          <div class="zone-head">
+            <span class="zone-title">Parametric Twin · SCADA</span>
+            <span id="isolationGuardBadge">Guard: active</span>
+            <span id="twinMatchBadge">Twin sync: —</span>
+          </div>
+          <div class="zone-body twin-layout">
+            <div class="twin-toolbar">
+              <button type="button" class="btn btn--sm active" id="btnModeSolid">Solid</button>
+              <button type="button" class="btn btn--sm" id="btnModeWireframe">Wireframe</button>
+              <button type="button" class="btn btn--sm" id="btnToggleExplode">Explode PCB</button>
+              <button type="button" class="btn btn--sm" id="btnResetView">Reset view</button>
+            </div>
+            <div class="twin-body-row">
+              <aside id="andonColumn" aria-label="Andon stack">
+                <span class="zone-title" style="text-align: center">ANDON</span>
+                <div id="andonStack">
+                  <div class="andon-cap" aria-hidden="true"></div>
+                  <div class="andon-housing">
+                    <div class="andon-lamp" id="andonRed" title="Red andon"></div>
+                    <div class="andon-lamp" id="andonAmber" title="Amber andon"></div>
+                    <div class="andon-lamp lit" id="andonGreen" title="Green andon"></div>
+                  </div>
+                  <div class="andon-pole" aria-hidden="true"></div>
+                  <div class="andon-base" aria-hidden="true"></div>
+                </div>
+              </aside>
+              <div id="canvasStage">
+                <canvas id="cadCanvas"></canvas>
+                <div class="dim-labels">
+                  <span id="labelDimLength">L: 140.0 mm</span>
+                  <span id="labelDimDia">Ø: 16.0 mm</span>
+                  <span id="labelDipAddr">DIP addr: 1</span>
+                </div>
+                <div id="faultCallout">
+                  <div id="faultCalloutZone">Zone</div>
+                  <div id="faultCalloutText">Fault detail</div>
+                </div>
+              </div>
+            </div>
+            <div id="assemblyTreePills"></div>
+            <p id="selectedPartSummary">Select an assembly zone on the twin or tree.</p>
+            <div class="dip-row">
+              <span class="tag">DIP-8</span>
+              <span id="dipCalcAddr">Addr: 1</span>
+              <div id="dipSwitchesRow"></div>
+            </div>
+            <p id="dipPinSummary">MSB..LSB weights [128,64,32,16,8,4,2,1]</p>
+            <div id="scadaLiveCard">
+              <div class="zone-head" style="border: none; padding: 0 0 6px">
+                <span class="zone-title">Modbus RTU · 9600</span>
+                <span id="scadaStatusBadge">OFFLINE</span>
+              </div>
+              <div class="scada-grid">
+                <div class="metric">
+                  <label>Temp</label>
+                  <div class="scada-val" id="scadaTempVal">—</div>
+                </div>
+                <div class="metric">
+                  <label>RH</label>
+                  <div class="scada-val" id="scadaHumVal">—</div>
+                </div>
+                <div class="metric">
+                  <label>Slave</label>
+                  <div class="scada-val" id="scadaSlaveVal">—</div>
+                </div>
+              </div>
+              <div id="scadaCrcPill" class="tag">CRC: —</div>
+              <pre id="scadaFrameHex">TX/RX: —</pre>
+              <div class="scada-actions">
+                <select id="selectModbusMode" aria-label="Modbus mode">
+                  <option value="auto">auto</option>
+                  <option value="hardware">hardware</option>
+                  <option value="sim_healthy" selected>sim_healthy</option>
+                  <option value="sim_offline_open">sim_offline_open</option>
+                  <option value="sim_7fff_fault">sim_7fff_fault</option>
+                </select>
+                <button type="button" class="btn btn--sm" id="btnScanRealModbus">Scan USB RS-485</button>
+                <button type="button" class="btn btn--sm" id="btnSimConnectModbus">Sim connect</button>
+                <button type="button" class="btn btn--sm" id="btnBreathTest">Breath test</button>
+              </div>
+              <div id="scadaChartWrap">
+                <div id="scadaChart"></div>
+                <canvas id="scadaFallbackCanvas" width="400" height="120"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Zone C: AI voice -->
+        <section class="zone" aria-label="AI voice copilot">
+          <div class="zone-head">
+            <span class="zone-title">LFM Voice · Hands-free</span>
+          </div>
+          <div class="zone-body voice-stack">
+            <div class="voice-controls">
+              <button type="button" class="btn btn--sm" id="btnHandsFreeMic">Hands-free</button>
+              <span id="handsFreeText">VAD off</span>
+              <button type="button" class="btn btn--sm" id="btnAutoSpeak">Auto-speak</button>
+              <span id="autoSpeakText">TTS on</span>
+            </div>
+            <div id="nextStepBox">
+              <div id="nextStepTitle">Next step</div>
+              <div id="nextStepBody">Monitor bench feed and Modbus health.</div>
+            </div>
+            <div id="chatFeed" role="log" aria-live="polite" aria-label="Chat feed"></div>
+            <div class="ptt-block">
+              <button type="button" id="btnVoiceRecord" aria-labelledby="pttLabel">
+                <span class="sr-only">Push to talk</span>
+              </button>
+              <div>
+                <div id="pttLabel">Push-to-talk</div>
+                <small id="pttSubLabel">Hold or use hands-free VAD</small>
+                <div id="voiceMeter"><div id="voiceMeterFill"></div></div>
+              </div>
+            </div>
+            <form id="textQueryForm">
+              <input
+                type="text"
+                id="queryInput"
+                placeholder="Ask about DIP, Modbus, or zones…"
+                autocomplete="off"
+              />
+              <button type="submit" class="btn btn--primary btn--sm">Send</button>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- DIP macro PiP -->
+    <div id="dipMacroPip" role="dialog" aria-label="DIP crop PiP">
+      <div class="pip-head">
+        <span>DIP macro</span>
+        <button type="button" class="btn btn--sm btn--icon" id="btnCloseDipPip">×</button>
+      </div>
+      <img id="dipCropImg" alt="DIP crop" src="/api/video/dip_crop" />
+      <canvas id="dipCropFallbackCanvas" width="320" height="200" hidden></canvas>
+    </div>
+
+    <!-- Manual lightbox -->
+    <div class="modal-backdrop" id="manualModal" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <h2 id="lightboxTitle">Operator Manual</h2>
+          <span class="tag" id="lightboxPageBadge">Page 1</span>
+          <button type="button" class="btn btn--sm" id="lightboxCloseBtn">Close</button>
+        </div>
+        <div class="modal-body">
+          <img id="lightboxImg" alt="Manual page enlarged" src="/api/manual/page/1" />
+          <div class="lightbox-nav">
+            <button type="button" class="btn btn--sm" id="lightboxPrevBtn">Previous</button>
+            <button type="button" class="btn btn--sm" id="lightboxNextBtn">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Escalation modal -->
+    <div class="modal-backdrop" id="escalationModal" role="dialog" aria-modal="true" aria-label="Escalation package">
+      <div class="modal-panel modal-panel--wide">
+        <div class="modal-head">
+          <h2>Manufacturer escalation</h2>
+          <button type="button" class="btn btn--sm" id="escalationCloseBtn">Close</button>
+        </div>
+        <div class="modal-body">
+          <p id="escOutboxState">Outbox: —</p>
+          <p id="escPackagePath">Package: —</p>
+          <a id="escZipDownloadLink" class="btn btn--primary" href="#" download>Download ZIP</a>
+          <div class="field-label">Email to</div>
+          <p id="escEmailTo">manufacturer-escalation@localhost</p>
+          <div class="field-label">Subject</div>
+          <p id="escEmailSubject">—</p>
+          <div class="field-label">Attachments</div>
+          <ul id="escAttachmentsList"></ul>
+          <textarea id="escEmailBody" readonly rows="6"></textarea>
+          <div class="esc-tabs">
+            <button type="button" class="btn btn--sm active" data-tab="quad">Quad preview</button>
+            <button type="button" class="btn btn--sm" data-tab="strip">Strip preview</button>
+          </div>
+          <div class="esc-preview">
+            <img id="tabPreviewQuad" alt="3D quad snapshot" />
+            <img id="tabPreviewStrip" alt="Before/during/after strip" hidden />
+          </div>
+          <img id="escSnapshotImg" alt="Escalation snapshot" style="max-width: 100%; margin-top: 8px" />
+          <p><span class="tag" id="escSummaryZone">Zone: —</span> <span class="tag" id="escSummaryDip">DIP: —</span></p>
+        </div>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/static/vendor/three.module.min.js"
+        }
+      }
+    </script>
+    <script type="module" src="/static/app.js?v=scada3"></script>
+  </body>
+</html>

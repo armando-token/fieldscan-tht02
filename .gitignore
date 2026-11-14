@@ -1,0 +1,16 @@
+.DS_Store
+.venv/
+logs/
+exports/*
+!exports/.gitkeep
+outbox/*
+!outbox/.gitkeep
+models/*.gguf
+models/*.onnx
+models/*.onnx.json
+models/en/
+bin/llama-b*
+__pycache__/
+*.pyc
+.pytest_cache/
+uv.lock
