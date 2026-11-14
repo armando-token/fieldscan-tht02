@@ -1,5 +1,9 @@
 # FieldScan CAD · Digital Twin (TZ THT-02)
 
+<p align="center">
+  <img src="docs/fieldscan-hmi-cover.jpg" alt="FieldScan CAM — live USB vision, 1:1 digital twin, Modbus-RTU SCADA, LFM AI Engineer, Manual V1.1" width="100%" />
+</p>
+
 **Offline industrial FieldScan copilot** for the Tzone **TZ THT-02** RS-485 temperature & humidity sensor.
 
 USB UVC vision · 2D PDF manual · Liquid AI LFM2.5 (VL + Audio) · Three.js 60 FPS parametric CAD · AutoCAD DXF/STL escalation · Modbus-RTU SCADA.
